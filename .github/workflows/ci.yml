@@ -133,7 +133,7 @@ jobs:
           
           # Set environment variables with input overrides
           REGISTRY="${{ inputs.registry || env.REGISTRY }}"
-          PROJECT_NAMESPACE="${env.PROJECT_NAMESPACE}"  # Always use from build.env
+          PROJECT_NAMESPACE="${PROJECT_NAMESPACE}"  # Always use from build.env
           IMAGE="${{ inputs.image || env.IMAGE }}"
           FRAPPE_REPO="${{ inputs.frappe-repo || env.FRAPPE_REPO }}"
           FRAPPE_VERSION="${{ inputs.frappe-version || env.FRAPPE_VERSION }}"
