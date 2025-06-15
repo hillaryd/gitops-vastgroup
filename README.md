@@ -1,3 +1,3 @@
-# gitops-frappe
+# gitops-vastgroup
 
 ## Frappe Custom Image Build
