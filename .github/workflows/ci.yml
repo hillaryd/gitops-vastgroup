@@ -147,7 +147,7 @@ jobs:
           # Debug output after potential override
           echo "DOCKERFILE after override: $DOCKERFILE"
           
-          # Set outputs for next job
+          # Set outputs for next job - IMPORTANT: Make sure dockerfile is set correctly
           echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
           echo "project_namespace=$PROJECT_NAMESPACE" >> $GITHUB_OUTPUT
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
@@ -155,8 +155,8 @@ jobs:
           echo "frappe_version=$FRAPPE_VERSION" >> $GITHUB_OUTPUT
           echo "py_version=$PY_VERSION" >> $GITHUB_OUTPUT
           echo "nodejs_version=$NODEJS_VERSION" >> $GITHUB_OUTPUT
-          echo "apps_json_base64=$APPS_JSON_BASE64" >> $GITHUB_OUTPUT
           echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
+          echo "apps_json_base64=$APPS_JSON_BASE64" >> $GITHUB_OUTPUT
           
           # Debug the output
           echo "Output dockerfile value: $(cat $GITHUB_OUTPUT | grep dockerfile)"
@@ -252,8 +252,18 @@ jobs:
 
       - name: Verify Dockerfile exists
         run: |
+          # Make sure we have the dockerfile value
           echo "Received dockerfile value: ${{ needs.validate.outputs.dockerfile }}"
-          DOCKERFILE_PATH="builds/${{ needs.validate.outputs.dockerfile }}"
+          
+          # If it's empty, source it directly from build.env
+          if [ -z "${{ needs.validate.outputs.dockerfile }}" ]; then
+            source ./ci/build.env
+            echo "Using DOCKERFILE from build.env: $DOCKERFILE"
+            DOCKERFILE_PATH="builds/$DOCKERFILE"
+          else
+            DOCKERFILE_PATH="builds/${{ needs.validate.outputs.dockerfile }}"
+          fi
+          
           echo "Checking for Dockerfile at: $DOCKERFILE_PATH"
           if [ ! -f "$DOCKERFILE_PATH" ]; then
             echo "::error::Dockerfile not found at $DOCKERFILE_PATH"
