@@ -131,6 +131,9 @@ jobs:
             fi
           done
           
+          # Debug output
+          echo "DOCKERFILE value from build.env: $DOCKERFILE"
+          
           # Set environment variables with input overrides
           REGISTRY="${{ inputs.registry || env.REGISTRY }}"
           PROJECT_NAMESPACE="${PROJECT_NAMESPACE}"  # Always use from build.env
@@ -140,6 +143,9 @@ jobs:
           PY_VERSION="${{ inputs.py-version || env.PY_VERSION }}"
           NODEJS_VERSION="${{ inputs.nodejs-version || env.NODEJS_VERSION }}"
           DOCKERFILE="${{ inputs.dockerfile || env.DOCKERFILE }}"
+          
+          # Debug output after potential override
+          echo "DOCKERFILE value after potential override: $DOCKERFILE"
           
           # Encode apps.json as base64
           APPS_JSON_BASE64="${{ inputs.apps-json-base64 }}"
@@ -233,6 +239,7 @@ jobs:
       - name: Verify Dockerfile exists
         run: |
           DOCKERFILE_PATH="builds/${{ needs.validate.outputs.dockerfile }}"
+          echo "Checking for Dockerfile at: $DOCKERFILE_PATH"
           if [ ! -f "$DOCKERFILE_PATH" ]; then
             echo "::error::Dockerfile not found at $DOCKERFILE_PATH"
             exit 1
