@@ -122,6 +122,9 @@ jobs:
           # Source build.env
           source ./ci/build.env
           
+          # Debug output
+          echo "DOCKERFILE from build.env: $DOCKERFILE"
+          
           # Validate required environment variables
           required_vars=("REGISTRY" "PROJECT_NAMESPACE" "IMAGE" "FRAPPE_REPO" "FRAPPE_VERSION" "DOCKERFILE")
           for var in "${required_vars[@]}"; do
@@ -130,9 +133,6 @@ jobs:
               exit 1
             fi
           done
-          
-          # Debug output
-          echo "DOCKERFILE value from build.env: $DOCKERFILE"
           
           # Set environment variables with input overrides
           REGISTRY="${{ inputs.registry || env.REGISTRY }}"
@@ -145,7 +145,21 @@ jobs:
           DOCKERFILE="${{ inputs.dockerfile || env.DOCKERFILE }}"
           
           # Debug output after potential override
-          echo "DOCKERFILE value after potential override: $DOCKERFILE"
+          echo "DOCKERFILE after override: $DOCKERFILE"
+          
+          # Set outputs for next job
+          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
+          echo "project_namespace=$PROJECT_NAMESPACE" >> $GITHUB_OUTPUT
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "frappe_repo=$FRAPPE_REPO" >> $GITHUB_OUTPUT
+          echo "frappe_version=$FRAPPE_VERSION" >> $GITHUB_OUTPUT
+          echo "py_version=$PY_VERSION" >> $GITHUB_OUTPUT
+          echo "nodejs_version=$NODEJS_VERSION" >> $GITHUB_OUTPUT
+          echo "apps_json_base64=$APPS_JSON_BASE64" >> $GITHUB_OUTPUT
+          echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
+          
+          # Debug the output
+          echo "Output dockerfile value: $(cat $GITHUB_OUTPUT | grep dockerfile)"
           
           # Encode apps.json as base64
           APPS_JSON_BASE64="${{ inputs.apps-json-base64 }}"
@@ -238,6 +252,7 @@ jobs:
 
       - name: Verify Dockerfile exists
         run: |
+          echo "Received dockerfile value: ${{ needs.validate.outputs.dockerfile }}"
           DOCKERFILE_PATH="builds/${{ needs.validate.outputs.dockerfile }}"
           echo "Checking for Dockerfile at: $DOCKERFILE_PATH"
           if [ ! -f "$DOCKERFILE_PATH" ]; then
