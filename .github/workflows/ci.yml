@@ -61,21 +61,9 @@ permissions:
   packages: write
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10  # Add timeout to prevent stuck jobs
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      apps_hash: ${{ steps.version.outputs.apps_hash }}
-      registry: ${{ steps.env-vars.outputs.registry }}
-      project_namespace: ${{ steps.env-vars.outputs.project_namespace }}
-      image: ${{ steps.env-vars.outputs.image }}
-      frappe_repo: ${{ steps.env-vars.outputs.frappe_repo }}
-      frappe_version: ${{ steps.env-vars.outputs.frappe_version }}
-      py_version: ${{ steps.env-vars.outputs.py_version }}
-      nodejs_version: ${{ steps.env-vars.outputs.nodejs_version }}
-      apps_json_base64: ${{ steps.env-vars.outputs.apps_json_base64 }}
-      dockerfile: ${{ steps.env-vars.outputs.dockerfile }}
+    timeout-minutes: 120  # 2 hours max for build
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,111 +89,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate apps.json format
-        id: validate-apps
-        run: |
-          # Check if apps.json is valid JSON
-          if ! jq empty ./ci/apps.json; then
-            echo "::error::apps.json is not valid JSON"
-            exit 1
-          fi
-          
-          # Check if apps.json has the expected structure
-          if ! jq -e 'if type == "array" and (.[].url | type == "string") and (.[].branch | type == "string") then true else false end' ./ci/apps.json > /dev/null; then
-            echo "::error::apps.json does not have the expected structure. Each item should have url and branch fields."
-            exit 1
-          fi
-
-      - name: Source Build Env and Validate
-        id: env-vars
-        run: |
-          # Source build.env
-          source ./ci/build.env
-          
-          # Debug output
-          echo "REGISTRY from build.env: $REGISTRY"
-          echo "PROJECT_NAMESPACE from build.env: $PROJECT_NAMESPACE"
-          echo "IMAGE from build.env: $IMAGE"
-          echo "FRAPPE_REPO from build.env: $FRAPPE_REPO"
-          echo "FRAPPE_VERSION from build.env: $FRAPPE_VERSION"
-          echo "PY_VERSION from build.env: $PY_VERSION"
-          echo "NODEJS_VERSION from build.env: $NODEJS_VERSION"
-          echo "DOCKERFILE from build.env: $DOCKERFILE"
-          
-          # Validate required environment variables
-          required_vars=("REGISTRY" "PROJECT_NAMESPACE" "IMAGE" "FRAPPE_REPO" "FRAPPE_VERSION" "DOCKERFILE")
-          for var in "${required_vars[@]}"; do
-            if [ -z "${!var}" ]; then
-              echo "::error::Required environment variable $var is not set in build.env"
-              exit 1
-            fi
-          done
-          
-          # Set environment variables with input overrides
-          REGISTRY="${{ inputs.registry || env.REGISTRY }}"
-          PROJECT_NAMESPACE="${PROJECT_NAMESPACE}"  # Always use from build.env
-          IMAGE="${{ inputs.image || env.IMAGE }}"
-          FRAPPE_REPO="${{ inputs.frappe-repo || env.FRAPPE_REPO }}"
-          FRAPPE_VERSION="${{ inputs.frappe-version || env.FRAPPE_VERSION }}"
-          PY_VERSION="${{ inputs.py-version || env.PY_VERSION }}"
-          NODEJS_VERSION="${{ inputs.nodejs-version || env.NODEJS_VERSION }}"
-          DOCKERFILE="${{ inputs.dockerfile || env.DOCKERFILE }}"
-          
-          # Debug output after potential override
-          echo "REGISTRY after override: $REGISTRY"
-          echo "PROJECT_NAMESPACE after override: $PROJECT_NAMESPACE"
-          echo "IMAGE after override: $IMAGE"
-          echo "FRAPPE_REPO after override: $FRAPPE_REPO"
-          echo "FRAPPE_VERSION after override: $FRAPPE_VERSION"
-          echo "PY_VERSION after override: $PY_VERSION"
-          echo "NODEJS_VERSION after override: $NODEJS_VERSION"
-          echo "DOCKERFILE after override: $DOCKERFILE"
-          
-          # Set outputs for next job
-          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
-          echo "project_namespace=$PROJECT_NAMESPACE" >> $GITHUB_OUTPUT
-          echo "image=$IMAGE" >> $GITHUB_OUTPUT
-          echo "frappe_repo=$FRAPPE_REPO" >> $GITHUB_OUTPUT
-          echo "frappe_version=$FRAPPE_VERSION" >> $GITHUB_OUTPUT
-          echo "py_version=$PY_VERSION" >> $GITHUB_OUTPUT
-          echo "nodejs_version=$NODEJS_VERSION" >> $GITHUB_OUTPUT
-          echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
-          
-          # Debug the outputs
-          echo "Output registry value: $(cat $GITHUB_OUTPUT | grep registry)"
-          echo "Output project_namespace value: $(cat $GITHUB_OUTPUT | grep project_namespace)"
-          echo "Output image value: $(cat $GITHUB_OUTPUT | grep image | grep -v frappe)"
-          echo "Output dockerfile value: $(cat $GITHUB_OUTPUT | grep dockerfile)"
-          
-          # Encode apps.json as base64
-          APPS_JSON_BASE64="${{ inputs.apps-json-base64 }}"
-          if [ -z "$APPS_JSON_BASE64" ]; then
-            APPS_JSON_BASE64=$(base64 -w 0 ./ci/apps.json)
-          fi
-          
-          # Set outputs for next job
-          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
-          echo "project_namespace=$PROJECT_NAMESPACE" >> $GITHUB_OUTPUT
-          echo "image=$IMAGE" >> $GITHUB_OUTPUT
-          echo "frappe_repo=$FRAPPE_REPO" >> $GITHUB_OUTPUT
-          echo "frappe_version=$FRAPPE_VERSION" >> $GITHUB_OUTPUT
-          echo "py_version=$PY_VERSION" >> $GITHUB_OUTPUT
-          echo "nodejs_version=$NODEJS_VERSION" >> $GITHUB_OUTPUT
-          echo "apps_json_base64=$APPS_JSON_BASE64" >> $GITHUB_OUTPUT
-          echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
-          
-          # Also set to environment for this job
-          echo "REGISTRY=$REGISTRY" >> $GITHUB_ENV
-          echo "PROJECT_NAMESPACE=$PROJECT_NAMESPACE" >> $GITHUB_ENV
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          echo "FRAPPE_REPO=$FRAPPE_REPO" >> $GITHUB_ENV
-          echo "FRAPPE_VERSION=$FRAPPE_VERSION" >> $GITHUB_ENV
-          echo "PY_VERSION=$PY_VERSION" >> $GITHUB_ENV
-          echo "NODEJS_VERSION=$NODEJS_VERSION" >> $GITHUB_ENV
-          echo "DOCKERFILE=$DOCKERFILE" >> $GITHUB_ENV
-          echo "APPS_JSON_BASE64=$APPS_JSON_BASE64" >> $GITHUB_ENV
-
-      - name: Generate version and cache key
+      - name: Generate version
         id: version
         run: |
           # Read version from version.txt
@@ -221,43 +105,26 @@ jobs:
             VERSION="${{ inputs.version }}"
           fi
           
-          # Generate cache key based on apps.json content
-          APPS_HASH=$(sha256sum ./ci/apps.json | cut -d ' ' -f 1)
-          
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
           echo "COMMIT_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
-          echo "APPS_HASH=$APPS_HASH" >> $GITHUB_ENV
-          
-          # Set outputs for next job
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "apps_hash=$APPS_HASH" >> $GITHUB_OUTPUT
-          
-          # No automatic update to version.txt - user will update manually to trigger builds
 
-      - name: Create Git Tag
-        if: success()
+      - name: Source Build Env
+        id: source-build-env
         run: |
-          git tag "v$VERSION" || echo "Tag already exists"
-          git push origin "v$VERSION" || echo "Tag already pushed"
-
-  build:
-    needs: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours max for build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          cat ./ci/build.env >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "APPS_JSON_BASE64=$(base64 -w 0 ./ci/apps.json)" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ inputs.registry || env.REGISTRY }}
+          username: ${{ inputs.registry-user || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
 
       - name: Checkout Frappe Docker
         uses: actions/checkout@v4
@@ -266,47 +133,26 @@ jobs:
           path: builds
           fetch-depth: 1
 
-      - name: Make build script executable
-        run: chmod +x ./ci/build-image.sh
-
-      - name: Build and push image
-        env:
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: ./ci/build-image.sh
-
-  update-readme:
-    needs: [build]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Update README badge
-        run: |
-          # Check if README.md exists
-          if [ -f "README.md" ]; then
-            # Add or update build status badge
-            if grep -q "!\[Build Status\]" README.md; then
-              sed -i 's/\!\[Build Status\](.*)$/\!\[Build Status\](https:\/\/github.com\/${{ github.repository }}\/actions\/workflows\/ci.yml\/badge.svg)/' README.md
-            else
-              # Add badge at the top of the file after the first heading
-              sed -i '0,/^# /s/^# \(.*\)$/# \1\n\n![Build Status](https:\/\/github.com\/${{ github.repository }}\/actions\/workflows\/ci.yml\/badge.svg)/' README.md
-            fi
-            
-            # Commit and push changes if any
-            git config --global user.name "GitHub Actions"
-            git config --global user.email "actions@github.com"
-            git add README.md
-            git commit -m "Update build status badge [skip ci]" || echo "No changes to commit"
-            git push || echo "No changes to push"
-          fi
-
-      - name: Debug outputs from validate job
-        run: |
-          echo "Registry: '${{ needs.validate.outputs.registry }}'"
-          echo "Project namespace: '${{ needs.validate.outputs.project_namespace }}'"
-          echo "Image: '${{ needs.validate.outputs.image }}'"
-          echo "Version: '${{ needs.validate.outputs.version }}'"
-          echo "Full image tag: '${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:${{ needs.validate.outputs.version }}'"
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: builds
+          file: builds/${{ inputs.dockerfile || env.DOCKERFILE }}
+          tags: |
+            ${{ inputs.registry || env.REGISTRY }}/${{ env.PROJECT_NAMESPACE || github.repository }}/${{ inputs.image || env.IMAGE }}:${{ inputs.version || env.VERSION }}
+            ${{ inputs.registry || env.REGISTRY }}/${{ env.PROJECT_NAMESPACE || github.repository }}/${{ inputs.image || env.IMAGE }}:latest
+          cache-from: type=gha,scope=${{ github.ref_name }}-${{ hashFiles('./ci/apps.json') }}
+          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-${{ hashFiles('./ci/apps.json') }}
+          build-args: |
+            FRAPPE_PATH=${{ inputs.frappe-repo || env.FRAPPE_REPO }}
+            FRAPPE_BRANCH=${{ inputs.frappe-version || env.FRAPPE_VERSION }}
+            PYTHON_VERSION=${{ inputs.py-version || env.PY_VERSION }}
+            NODE_VERSION=${{ inputs.nodejs-version || env.NODEJS_VERSION }}
+            APPS_JSON_BASE64=${{ inputs.apps-json-base64 || env.APPS_JSON_BASE64 }}
+            CACHE_BUST=${{ github.run_id }}
+          labels: |
+            org.opencontainers.image.created=${{ env.BUILD_DATE }}
+            org.opencontainers.image.revision=${{ env.COMMIT_SHA }}
+            org.opencontainers.image.version=${{ inputs.version || env.VERSION }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
