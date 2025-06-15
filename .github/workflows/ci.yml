@@ -1,6 +1,6 @@
 name: Build Custom ERPNext Image
 
-# Add concurrency control to prevent multiple builds running simultaneously
+# Add Concurrency control to prevent multiple builds running simultaneously
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -63,7 +63,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours max for build
+    timeout-minutes: 120  # 2 hours maximimum for builds
     steps:
       - name: Checkout
         uses: actions/checkout@v4
