@@ -328,3 +328,11 @@ jobs:
             git commit -m "Update build status badge [skip ci]" || echo "No changes to commit"
             git push || echo "No changes to push"
           fi
+
+      - name: Debug outputs from validate job
+        run: |
+          echo "Registry: '${{ needs.validate.outputs.registry }}'"
+          echo "Project namespace: '${{ needs.validate.outputs.project_namespace }}'"
+          echo "Image: '${{ needs.validate.outputs.image }}'"
+          echo "Version: '${{ needs.validate.outputs.version }}'"
+          echo "Full image tag: '${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:${{ needs.validate.outputs.version }}'"
