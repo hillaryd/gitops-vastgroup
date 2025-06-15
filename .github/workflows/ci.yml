@@ -123,6 +123,13 @@ jobs:
           source ./ci/build.env
           
           # Debug output
+          echo "REGISTRY from build.env: $REGISTRY"
+          echo "PROJECT_NAMESPACE from build.env: $PROJECT_NAMESPACE"
+          echo "IMAGE from build.env: $IMAGE"
+          echo "FRAPPE_REPO from build.env: $FRAPPE_REPO"
+          echo "FRAPPE_VERSION from build.env: $FRAPPE_VERSION"
+          echo "PY_VERSION from build.env: $PY_VERSION"
+          echo "NODEJS_VERSION from build.env: $NODEJS_VERSION"
           echo "DOCKERFILE from build.env: $DOCKERFILE"
           
           # Validate required environment variables
@@ -145,9 +152,16 @@ jobs:
           DOCKERFILE="${{ inputs.dockerfile || env.DOCKERFILE }}"
           
           # Debug output after potential override
+          echo "REGISTRY after override: $REGISTRY"
+          echo "PROJECT_NAMESPACE after override: $PROJECT_NAMESPACE"
+          echo "IMAGE after override: $IMAGE"
+          echo "FRAPPE_REPO after override: $FRAPPE_REPO"
+          echo "FRAPPE_VERSION after override: $FRAPPE_VERSION"
+          echo "PY_VERSION after override: $PY_VERSION"
+          echo "NODEJS_VERSION after override: $NODEJS_VERSION"
           echo "DOCKERFILE after override: $DOCKERFILE"
           
-          # Set outputs for next job - IMPORTANT: Make sure dockerfile is set correctly
+          # Set outputs for next job
           echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
           echo "project_namespace=$PROJECT_NAMESPACE" >> $GITHUB_OUTPUT
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
@@ -156,9 +170,11 @@ jobs:
           echo "py_version=$PY_VERSION" >> $GITHUB_OUTPUT
           echo "nodejs_version=$NODEJS_VERSION" >> $GITHUB_OUTPUT
           echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
-          echo "apps_json_base64=$APPS_JSON_BASE64" >> $GITHUB_OUTPUT
           
-          # Debug the output
+          # Debug the outputs
+          echo "Output registry value: $(cat $GITHUB_OUTPUT | grep registry)"
+          echo "Output project_namespace value: $(cat $GITHUB_OUTPUT | grep project_namespace)"
+          echo "Output image value: $(cat $GITHUB_OUTPUT | grep image | grep -v frappe)"
           echo "Output dockerfile value: $(cat $GITHUB_OUTPUT | grep dockerfile)"
           
           # Encode apps.json as base64
@@ -277,8 +293,8 @@ jobs:
           context: builds
           file: builds/${{ needs.validate.outputs.dockerfile }}
           tags: |
-            ghcr.io/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:${{ needs.validate.outputs.version }}
-            ghcr.io/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:latest
+            ${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:${{ needs.validate.outputs.version }}
+            ${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:latest
           # Cache system packages and base dependencies, but not custom apps
           cache-from: |
             type=gha,scope=${{ needs.validate.outputs.apps_hash }}
@@ -287,12 +303,12 @@ jobs:
             type=gha,mode=max,scope=${{ needs.validate.outputs.apps_hash }}
             type=registry,ref=${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:buildcache,mode=max
           build-args: |
-            "FRAPPE_PATH=${{ needs.validate.outputs.frappe_repo }}"
-            "FRAPPE_BRANCH=${{ needs.validate.outputs.frappe_version }}"
-            "PYTHON_VERSION=${{ needs.validate.outputs.py_version }}"
-            "NODE_VERSION=${{ needs.validate.outputs.nodejs_version }}"
-            "APPS_JSON_BASE64=${{ needs.validate.outputs.apps_json_base64 }}"
-            "CACHE_BUST=${{ github.run_id }}"
+            FRAPPE_PATH=${{ needs.validate.outputs.frappe_repo }}
+            FRAPPE_BRANCH=${{ needs.validate.outputs.frappe_version }}
+            PYTHON_VERSION=${{ needs.validate.outputs.py_version }}
+            NODE_VERSION=${{ needs.validate.outputs.nodejs_version }}
+            APPS_JSON_BASE64=${{ needs.validate.outputs.apps_json_base64 }}
+            CACHE_BUST=${{ github.run_id }}
           labels: |
             org.opencontainers.image.created=${{ env.BUILD_DATE }}
             org.opencontainers.image.revision=${{ env.COMMIT_SHA }}
