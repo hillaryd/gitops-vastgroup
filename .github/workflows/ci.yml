@@ -277,8 +277,8 @@ jobs:
           context: builds
           file: builds/${{ needs.validate.outputs.dockerfile }}
           tags: |
-            ${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:${{ needs.validate.outputs.version }}
-            ${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:latest
+            ghcr.io/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:${{ needs.validate.outputs.version }}
+            ghcr.io/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:latest
           # Cache system packages and base dependencies, but not custom apps
           cache-from: |
             type=gha,scope=${{ needs.validate.outputs.apps_hash }}
