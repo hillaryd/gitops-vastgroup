@@ -44,5 +44,6 @@ docker buildx build \
   --build-arg "NODE_VERSION=$NODEJS_VERSION" \
   --build-arg "APPS_JSON_BASE64=$APPS_JSON_BASE64" \
   --build-arg "CACHE_BUST=$GITHUB_RUN_ID" \
+  --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
   --file "builds/$DOCKERFILE" \
   builds
