@@ -257,65 +257,22 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}  # Removed ecr: auto and logout: true
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Frappe Docker
         uses: actions/checkout@v4
         with:
           repository: frappe/frappe_docker
           path: builds
-          fetch-depth: 1  # Only fetch latest commit
+          fetch-depth: 1
 
-      - name: Verify Dockerfile exists
-        run: |
-          # Make sure we have the dockerfile value
-          echo "Received dockerfile value: ${{ needs.validate.outputs.dockerfile }}"
-          
-          # If it's empty, source it directly from build.env
-          if [ -z "${{ needs.validate.outputs.dockerfile }}" ]; then
-            source ./ci/build.env
-            echo "Using DOCKERFILE from build.env: $DOCKERFILE"
-            DOCKERFILE_PATH="builds/$DOCKERFILE"
-          else
-            DOCKERFILE_PATH="builds/${{ needs.validate.outputs.dockerfile }}"
-          fi
-          
-          echo "Checking for Dockerfile at: $DOCKERFILE_PATH"
-          if [ ! -f "$DOCKERFILE_PATH" ]; then
-            echo "::error::Dockerfile not found at $DOCKERFILE_PATH"
-            exit 1
-          fi
+      - name: Make build script executable
+        run: chmod +x ./ci/build-image.sh
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          context: builds
-          file: builds/${{ needs.validate.outputs.dockerfile }}
-          tags: |
-            ${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:${{ needs.validate.outputs.version }}
-            ${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:latest
-          # Cache system packages and base dependencies, but not custom apps
-          cache-from: |
-            type=gha,scope=${{ needs.validate.outputs.apps_hash }}
-            type=registry,ref=${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:buildcache
-          cache-to: |
-            type=gha,mode=max,scope=${{ needs.validate.outputs.apps_hash }}
-            type=registry,ref=${{ needs.validate.outputs.registry }}/${{ needs.validate.outputs.project_namespace }}/${{ needs.validate.outputs.image }}:buildcache,mode=max
-          build-args: |
-            FRAPPE_PATH=${{ needs.validate.outputs.frappe_repo }}
-            FRAPPE_BRANCH=${{ needs.validate.outputs.frappe_version }}
-            PYTHON_VERSION=${{ needs.validate.outputs.py_version }}
-            NODE_VERSION=${{ needs.validate.outputs.nodejs_version }}
-            APPS_JSON_BASE64=${{ needs.validate.outputs.apps_json_base64 }}
-            CACHE_BUST=${{ github.run_id }}
-          labels: |
-            org.opencontainers.image.created=${{ env.BUILD_DATE }}
-            org.opencontainers.image.revision=${{ env.COMMIT_SHA }}
-            org.opencontainers.image.version=${{ needs.validate.outputs.version }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}/blob/main/README.md
-            org.opencontainers.image.vendor=${{ github.repository_owner }}
+      - name: Build and push image
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: ./ci/build-image.sh
 
   update-readme:
     needs: [build]
