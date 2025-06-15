@@ -134,6 +134,7 @@ jobs:
           fetch-depth: 1
 
       - name: Build and push
+        id: docker_build
         uses: docker/build-push-action@v5
         with:
           push: true
@@ -141,7 +142,7 @@ jobs:
           file: builds/${{ inputs.dockerfile || env.DOCKERFILE }}
           tags: |
             ${{ inputs.registry || env.REGISTRY }}/${{ env.PROJECT_NAMESPACE || github.repository }}/${{ inputs.image || env.IMAGE }}:${{ inputs.version || env.VERSION }}
-            ${{ inputs.registry || env.REGISTRY }}/${{ env.PROJECT_NAMESPACE || github.repository }}/${{ inputs.image || env.IMAGE }}:latest
+          # Removed the latest tag completely
           cache-from: type=gha,scope=${{ github.ref_name }}-${{ hashFiles('./ci/apps.json') }}
           cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-${{ hashFiles('./ci/apps.json') }}
           build-args: |
@@ -156,3 +157,11 @@ jobs:
             org.opencontainers.image.revision=${{ env.COMMIT_SHA }}
             org.opencontainers.image.version=${{ inputs.version || env.VERSION }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: Image details
+        run: |
+          echo "::notice title=Image Built Successfully::${{ inputs.registry || env.REGISTRY }}/${{ env.PROJECT_NAMESPACE || github.repository }}/${{ inputs.image || env.IMAGE }}:${{ inputs.version || env.VERSION }}"
+          echo "::group::Image Details"
+          echo "Full image reference: ${{ inputs.registry || env.REGISTRY }}/${{ env.PROJECT_NAMESPACE || github.repository }}/${{ inputs.image || env.IMAGE }}:${{ inputs.version || env.VERSION }}"
+          echo "Image digest: ${{ steps.docker_build.outputs.digest }}"
+          echo "::endgroup::"
